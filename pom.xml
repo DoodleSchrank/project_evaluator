@@ -24,7 +24,7 @@
             <artifactId>scenarioCreator</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/libraries/scenarioCreator.jar</systemPath>
+            <systemPath>${project.basedir}/libraries/ScenarioCreator.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.smflooding</groupId>

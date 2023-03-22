@@ -18,13 +18,13 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Matcher {
-    public static List<AbsoluteSimilarity> matchSimilarityFlooding() {
-        Graph g1 = null;
-        Graph g2 = null;
+    public static List<org.utils.Correspondence<String>> matchSimilarityFlooding() {
+        Graph<String> g1 = null;
+        Graph<String> g2 = null;
         SFConfig sfconfig = null;
-        var sf = new SimilarityFlooding(g1, g2, sfconfig);
+        var sf = new SimilarityFlooding<>(g1, g2, sfconfig);
         sf.run(10, 0.05f);
-        var distances = sf.getDistances();
+        var distances = sf.getCorrespondants();
         var graphs = sf.getGraphs();
 
         var knowledge = Filter.Knowledge;
@@ -38,7 +38,7 @@ public class Matcher {
         return distances;
     }
 
-    public static List<?> matchWinter() {
+    public static List<org.utils.Correspondence<String>> matchWinter() {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
         try {
@@ -56,10 +56,14 @@ public class Matcher {
             throw new RuntimeException(e);
         }
 
-        return correspondences.get().stream().toList();
+        return correspondences.get().stream().map(c ->
+                new org.utils.Correspondence<String>(
+                        c.getFirstRecord().getName(),
+                        c.getSecondRecord().getName(), c
+                        .getSimilarityScore())).toList();
     }
 
-    public static List<?> matchXG() {
+    public static List<org.utils.Correspondence<String>> matchXG() {
         return new ArrayList<>();
     }
 }
