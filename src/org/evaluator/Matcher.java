@@ -8,20 +8,26 @@ import de.uni_mannheim.informatik.dws.winter.processing.Processable;
 
 import org.SimilarityFlooding.Algorithms.*;
 import org.SimilarityFlooding.DataTypes.*;
+import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
+import org.SimilarityFlooding.Util.YAMLParser;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 public class Matcher {
-    public static List<org.utils.Correspondence<String>> matchSimilarityFlooding() {
-        Graph<String> g1 = null;
-        Graph<String> g2 = null;
-        SFConfig sfconfig = null;
+    public static List<org.utils.Correspondence<String>> matchSimilarityFlooding(String truth, String alteration) {
+        Graph<String> g1 = YAMLParser.Parse(truth).orElse(null);
+        Graph<String> g2 = YAMLParser.Parse(alteration).orElse(null);
+
+        var sfconfig = new SFConfig(StringSimilarity::Levenshtein, FixpointFormula.C);
+        assert g1 != null && g2 != null;
         var sf = new SimilarityFlooding<>(g1, g2, sfconfig);
         sf.run(10, 0.05f);
         var distances = sf.getCorrespondants();
@@ -38,15 +44,24 @@ public class Matcher {
         return distances;
     }
 
-    public static List<org.utils.Correspondence<String>> matchWinter() {
+    public static List<org.utils.Correspondence<String>> matchWinter(String[] truth, String[] alternation) {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
-        try {
-            new CSVRecordReader(0).loadFromCSV(new File("scifi1.csv"), data1);
-            new CSVRecordReader(0).loadFromCSV(new File("scifi2.csv"), data2);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        Arrays.stream(truth).forEach(file -> {
+            try {
+                new CSVRecordReader(0).loadFromCSV(new File(file), data1);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Arrays.stream(alternation).forEach(file -> {
+            try {
+                new CSVRecordReader(0).loadFromCSV(new File(file), data1);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
         MatchingEngine<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> engine = new MatchingEngine<>();
 
         Processable<Correspondence<Attribute, Attribute>> correspondences = null;
@@ -57,13 +72,13 @@ public class Matcher {
         }
 
         return correspondences.get().stream().map(c ->
-                new org.utils.Correspondence<String>(
+                new org.utils.Correspondence<>(
                         c.getFirstRecord().getName(),
-                        c.getSecondRecord().getName(), c
-                        .getSimilarityScore())).toList();
+                        c.getSecondRecord().getName(),
+                        c.getSimilarityScore())).toList();
     }
 
-    public static List<org.utils.Correspondence<String>> matchXG() {
+    public static List<org.utils.Correspondence<String>> matchXG(String[] truth, String[] alternation) {
         return new ArrayList<>();
     }
 }

@@ -1,7 +1,5 @@
 package org.evaluator;
 
-import java.util.ArrayList;
-
 public record ConfusionMatrix(long truePositives,
                               long falsePositives,
                               long trueNegatives,
@@ -101,7 +99,11 @@ public record ConfusionMatrix(long truePositives,
     }
 
     public double PhiCoefficient() {
-        return (truePositives * trueNegatives - falsePositives * falseNegatives) / Math.sqrt((truePositives + falsePositives) * (truePositives + falseNegatives) * (trueNegatives + falsePositives) * (trueNegatives + falseNegatives));
+        return (truePositives * trueNegatives - falsePositives * falseNegatives) /
+                Math.sqrt((truePositives + falsePositives) *
+                        (truePositives + falseNegatives) *
+                        (trueNegatives + falsePositives) *
+                        (trueNegatives + falseNegatives));
     }
 
     public double MatthewsCorrelationCoefficient() {
@@ -128,7 +130,7 @@ public record ConfusionMatrix(long truePositives,
         return PositiveLikelihoodRatio() / NegativeLikelihoodRatio();
     }
 
-    public double[] Matrix(int selector) {
+    public double[] Matrix() {
         return new double[] {
                 TruePositiveRate(),
                 TrueNegativeRate(),

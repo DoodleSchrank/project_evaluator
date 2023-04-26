@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CorrespondenceAnalyzer {
-    public static ConfusionMatrix Analyze(List<Correspondence<?>> testResults, List<Correspondence<?>> groundTruth) {
+    public static ConfusionMatrix Analyze(List<? extends Correspondence<?>> groundTruth, List<? extends Correspondence<?>> testResults) {
 
         // create crossproduct of all possible correspondences
         var crossProduct = new ArrayList<>();
