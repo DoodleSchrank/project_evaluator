@@ -21,6 +21,7 @@ import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
 import org.converter.Node;
+import org.matchers.XGBoostWrapper;
 
 import java.io.File;
 import java.io.IOException;
@@ -209,7 +210,14 @@ public class Matcher {
                 c.getSimilarityScore())).toList();
     }
 
-    public static List<org.utils.Correspondence<String>> matchXG(String[] firstSchema, String[] secondSchema) {
-        return new ArrayList<>();
+
+    public static List<org.utils.Correspondence<Node>> matchXG(String[] truth, String[] alternation) {
+        final var wrapper = new XGBoostWrapper(
+                "resources/Python-Schema-Matching",
+                "resources/Python-Schema-Matching/Test\\ Data/self"
+        );
+        wrapper.parseInput(truth, alternation);
+        wrapper.execute();
+        return wrapper.parseOutput();
     }
 }
