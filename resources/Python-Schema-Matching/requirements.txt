@@ -1,0 +1,7 @@
+numpy==1.24.2
+pandas==1.1.5
+nltk==3.6.5
+python-dateutil==2.8.2
+sentence-transformers==2.2.2
+xgboost==1.5.2
+strsimpy==0.2.1

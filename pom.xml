@@ -12,6 +12,7 @@
         <maven.compiler.source>19</maven.compiler.source>
         <maven.compiler.target>19</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jython.version>2.7.2</jython.version>
     </properties>
     <dependencies>
         <dependency>
@@ -30,6 +31,11 @@
             <version>1.1.3</version>
             <scope>system</scope>
             <systemPath>${project.build.directory}/../lib/scenario-creator-generation-1.1.3.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.python</groupId>
+            <artifactId>jython-standalone</artifactId>
+            <version>2.7.2</version>
         </dependency>
         <dependency>
             <groupId>org.smflooding</groupId>
