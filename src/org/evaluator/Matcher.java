@@ -14,7 +14,6 @@ import org.SimilarityFlooding.SimilarityFlooding;
 import org.SimilarityFlooding.Util.YAMLParser;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,7 +63,7 @@ public class Matcher {
 
         MatchingEngine<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> engine = new MatchingEngine<>();
 
-        Processable<Correspondence<Attribute, Attribute>> correspondences = null;
+        Processable<Correspondence<Attribute, Attribute>> correspondences;
         try {
             correspondences = engine.runLabelBasedSchemaMatching(data1.getSchema(), data2.getSchema(), new LabelComparatorJaccard(), 0.5);
         } catch (Exception e) {

@@ -85,7 +85,11 @@ public class Main {
                 Arrays.stream(truth.split("/")).reduce((first, second) -> second).orElse(null),
                 Arrays.stream(alteration.split("/")).reduce((first, second) -> second).orElse(null),
                 correspondences,
-                confMatrix.Matrix()), yamlWriter);
+                new double[]{
+                        confMatrix.truePositives(),
+                        confMatrix.TruePositiveRate(),
+                        confMatrix.Precision()}
+        ), yamlWriter);
         try {
             writer.append(yamlWriter.toString());
         } catch (IOException e) {
