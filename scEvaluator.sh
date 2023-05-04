@@ -50,7 +50,7 @@ for alt in {00..99}; do
   if (( ${#csv_files_list[@]} )); then
       break;
   fi
-  csv_files=""
+  csv_files="";
   for file in $csv_files_list; do
     csv_files="$csv_files,$file";
   done
