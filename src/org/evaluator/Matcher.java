@@ -1,20 +1,28 @@
 package org.evaluator;
 
 import de.uni_mannheim.informatik.dws.winter.matching.MatchingEngine;
+import de.uni_mannheim.informatik.dws.winter.matching.aggregators.VotingAggregator;
 import de.uni_mannheim.informatik.dws.winter.matching.blockers.BlockingKeyIndexer.VectorCreationMethod;
+import de.uni_mannheim.informatik.dws.winter.matching.blockers.InstanceBasedSchemaBlocker;
+import de.uni_mannheim.informatik.dws.winter.matching.blockers.NoSchemaBlocker;
+import de.uni_mannheim.informatik.dws.winter.matching.rules.VotingMatchingRule;
 import de.uni_mannheim.informatik.dws.winter.model.*;
 import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.*;
+import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record;
+import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.blocking.DefaultAttributeValueGenerator;
 import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.blocking.DefaultAttributeValuesAsBlockingKeyGenerator;
 import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.comparators.LabelComparatorJaccard;
 import de.uni_mannheim.informatik.dws.winter.processing.Processable;
 import de.uni_mannheim.informatik.dws.winter.similarity.vectorspace.VectorSpaceMaximumOfContainmentSimilarity;
 
+import de.uni_mannheim.informatik.dws.winter.utils.WinterLogManager;
 import org.SimilarityFlooding.Algorithms.*;
 import org.SimilarityFlooding.DataTypes.*;
 import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
 import org.SimilarityFlooding.Util.YAMLParser;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -52,7 +60,7 @@ public class Matcher {
 
     private static final Logger logger = WinterLogManager.activateLogger("default");
 
-    public static List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] truth, String[] alternation) {
+    public static List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] truth, String[] alternation) throws IOException {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
@@ -78,7 +86,7 @@ public class Matcher {
                         data1, data2);
 
         // define the schema matching rule
-        VotingMatchingRule<Attribute, de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record> schemaRule = new VotingMatchingRule<Attribute, Record>(
+        VotingMatchingRule<Attribute, Record> schemaRule = new VotingMatchingRule<Attribute, Record>(
                 1.0) {
 
             private static final long serialVersionUID = 1L;
@@ -128,7 +136,7 @@ public class Matcher {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        DataSet<de.uni_mannheim.informatik.dws.winter.model.defultmodel.Record, Attribute> data2 = new HashedDataSet<>();
+        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
         try {
             new CSVRecordReader(-1).loadFromCSV(new File(
                     "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
@@ -138,7 +146,7 @@ public class Matcher {
         }
 
         // define a blocker that uses the attribute values to generate pairs
-        InstanceBasedSchemaBlocker<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> blocker = new InstanceBasedSchemaBlocker<>(
+        InstanceBasedSchemaBlocker<Record, Attribute> blocker = new InstanceBasedSchemaBlocker<>(
                 new DefaultAttributeValueGenerator(data1.getSchema()),
                 new DefaultAttributeValueGenerator(data2.getSchema()));
 
