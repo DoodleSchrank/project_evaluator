@@ -16,6 +16,12 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 public class Main {
+    //todo: remove xgboost debug main
+    /*public static void main(String[] args) {
+        var outXG = Matcher.matchXG(new String[]{"truth.csv"}, new String[]{"truth.csv"});
+        System.out.println(outXG);
+    }*/
+
     public static void main(String[] args) {
         if (args.length < 1) {
             System.err.println("You need to pass at least one -alt and -o argument for the program to work.");

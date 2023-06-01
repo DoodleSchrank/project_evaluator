@@ -213,8 +213,8 @@ public class Matcher {
 
     public static List<org.utils.Correspondence<Node>> matchXG(String[] truth, String[] alternation) {
         final var wrapper = new XGBoostWrapper(
-                "resources/Python-Schema-Matching",
-                "resources/Python-Schema-Matching/Test\\ Data/self"
+                System.getProperty("user.dir") + "/resources/Python-Schema-Matching",
+                "."/*System.getProperty("user.dir") + "resources/Python-Schema-Matching/Test\\ Data/self"*/ //todo: this path is not found for some reason. i copied the files to the project root
         );
         wrapper.parseInput(truth, alternation);
         wrapper.execute();
