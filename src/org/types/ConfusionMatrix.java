@@ -1,4 +1,4 @@
-package org.evaluator;
+package org.types;
 
 public record ConfusionMatrix(long truePositives,
                               long falsePositives,

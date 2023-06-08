@@ -1,44 +1,59 @@
 package org.evaluator;
 
+import org.types.AlgorithmResult;
+import org.types.ConfusionMatrix;
 import org.utils.Correspondence;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class CorrespondenceAnalyzer {
-    public static ConfusionMatrix Analyze(List<? extends Correspondence<?>> groundTruth, List<? extends Correspondence<?>> testResults) {
+    public static AlgorithmResult Analyze(List<? extends Correspondence<?>> truth, List<? extends Correspondence<?>> algorithmResult) {
 
         // create crossproduct of all possible correspondences
         var crossProduct = new ArrayList<>();
-        groundTruth.parallelStream()
+        truth.parallelStream()
                 .map(Correspondence::nodeA).distinct()
                 .forEach(uniqueFirst -> {
-                    groundTruth.stream()
+                    truth.stream()
                             .map(Correspondence::nodeB).distinct()
                             .forEach(uniqueSecond ->
                                     crossProduct.add(new Correspondence<>(uniqueFirst, uniqueSecond, 0.0d)));
                 });
 
-        var truePositive = testResults.parallelStream()
-                .filter(groundTruth::contains).count();
-        var falsePositive = testResults.size() - truePositive;
+        var truePositive = algorithmResult.parallelStream()
+                .filter(truth::contains).count();
+        var falsePositive = algorithmResult.size() - truePositive;
 
         var trueNegative = crossProduct.parallelStream()
-                .filter(cP -> !groundTruth.contains(cP))    // get all real true negatives
-                .filter(tN -> !testResults.contains(tN))    // extract the ones correct in the testresults
+                .filter(cP -> !truth.contains(cP))    // get all real true negatives
+                .filter(tN -> !algorithmResult.contains(tN))    // extract the ones correct in the testresults
                 .count();
         var falseNegative = crossProduct.parallelStream()
-                .filter(cP -> !testResults.contains(cP))    // get test negatives
-                .filter(groundTruth::contains)              // which are supposed to be positive
+                .filter(cP -> !algorithmResult.contains(cP))    // get test negatives
+                .filter(truth::contains)              // which are supposed to be positive
                 .count();
 
-        return new ConfusionMatrix(
+        var cm =  new ConfusionMatrix(
                 truePositive,
                 falsePositive,
                 trueNegative,
                 falseNegative,
-                groundTruth.size(),
-                crossProduct.parallelStream().filter(cP -> !groundTruth.contains(cP)).count()
+                truth.size(),
+                crossProduct.parallelStream().filter(cP -> !truth.contains(cP)).count()
         );
+        return new AlgorithmResult(cm.truePositives(),
+                cm.TruePositiveRate(),
+                cm.Precision(),
+                cm.FalseNegativeRate(),
+                cm.FalseDiscoveryRate(),
+                cm.PositiveLikelihoodRatio(),
+                cm.PrevalenceThreshold(),
+                cm.ThreatScore(),
+                cm.Prevalence(),
+                cm.F1Score(),
+                cm.FowlkesMallowsIndex(),
+                cm.DiagnosticOddsRatio(),
+                algorithmResult);
     }
 }

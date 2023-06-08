@@ -1,41 +1,103 @@
 package org.evaluator;
 
-import edu.stanford.nlp.util.Quadruple;
-import edu.stanford.nlp.util.Triple;
-import org.converter.YAMLtoTruthCorrespondences;
-import org.javatuples.Quintet;
+import org.SimilarityFlooding.Util.YAMLParser;
+import org.converter.CorrespondanceExtractor;
+import org.javatuples.Pair;
+import org.types.EvaluationResult;
 import org.utils.Correspondence;
 import org.yaml.snakeyaml.Yaml;
+import scala.concurrent.impl.FutureConvertersImpl;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 public class Main {
     public static void main(String[] args) {
-        if (args.length < 6) {
+        if (args.length < 1) {
             System.err.println("You need to pass at least one -alt and -o argument for the program to work.");
             System.exit(1);
         }
 
-        var alterationFiles = new ArrayList<Quintet<String, String, String, String, String>>();
-        var outfile = "";
+        var schemaFiles = new ArrayList<String>();
+        var instanceFiles = new ArrayList<String>();
+        var corrFiles = new ArrayList<String>();
+        var outDir = "";
 
-        // arguments are expected to be: truth Correspondences (YAML), truthYAML, truthCSV, alterationYAML, alterationCSV
         for (var i = 0; i < args.length; i++) {
-            if (args[i].startsWith("-alt") && args.length > i + 5) {
-                alterationFiles.add(new Quintet<>(args[i + 1], args[i + 2], args[i + 3], args[i + 4], args[i + 5]));
+            if (args[i].startsWith("-schemata") && args.length > i + 1) {
+                schemaFiles.addAll(Arrays.stream(args[i + 1].split(",")).toList());
+                i++;
             }
-            if (args[i].startsWith("-o") && args.length > i + 1) {
-                outfile = args[i + 1];
+            if (args[i].startsWith("-instances") && args.length > i + 1) {
+                instanceFiles.addAll(Arrays.stream(args[i + 1].split(",")).toList());
+                i++;
+            }
+            if (args[i].startsWith("-corrs") && args.length > i + 1) {
+                corrFiles.addAll(Arrays.stream(args[i + 1].split(",")).toList());
+                i++;
+            }
+            if (args[i].startsWith("-av") && args.length > i + 1) {
+                outDir = args[i + 1];
+                i++;
             }
         }
-        assert !outfile.equals("");
+        assert !outDir.isEmpty();
+
+        final int numberSchemata = schemaFiles.stream().map(schemaFile -> Integer.parseInt(schemaFile.substring(0, 2))).max(Integer::compare).orElse(0);
+
+        final var finalOutDir = outDir;
+        IntStream.range(1, numberSchemata).parallel().forEach(i -> {
+            IntStream.range(i, numberSchemata).parallel().forEach(j -> {
+                evaluate(i, j, schemaFiles.stream().filter(schema ->
+                                schema.startsWith(String.format("%02d", i)) ||
+                                        schema.startsWith(String.format("%02d", j))).toList(),
+                        instanceFiles.stream().filter(instance ->
+                                instance.startsWith(String.format("%02d", i)) ||
+                                        instance.startsWith(String.format("%02d", j))).toList(),
+                        CorrespondanceExtractor.ParseCorrs(corrFiles.stream().filter(corr ->
+                                corr.startsWith(String.format("%02d-%02d", i, j))).findFirst().orElseThrow()).orElseThrow(), //TODO maybe multiple corr files?
+                        finalOutDir);
+            });
+        });
+    }
+
+    public static void evaluate(int firstSchema, int secondSchema, List<String> schemas, List<String> instances, List<Correspondence<String>> correspondences, String outDir) {
+        assert schemas.size() == 2;
+
+        final var firstInstances = instances.stream().filter(instance -> instance.startsWith("%02d", firstSchema)).toArray(String[]::new);
+        final var secondInstances = instances.stream().filter(instance -> instance.startsWith("%02d", secondSchema)).toArray(String[]::new);
+
+        writeToFile(
+                new EvaluationResult(
+                        CorrespondenceAnalyzer.Analyze(
+                                correspondences,
+                                Matcher.matchSimilarityFlooding(
+                                        YAMLParser.Parse(schemas.get(0)).orElse(null),
+                                        YAMLParser.Parse(schemas.get(1)).orElse(null))),
+                        CorrespondenceAnalyzer.Analyze(
+                                correspondences,
+                                Matcher.matchWinterDuplicate(firstInstances, secondInstances)),
+                        CorrespondenceAnalyzer.Analyze(
+                                correspondences,
+                                Matcher.matchWinterInstance(firstInstances, secondInstances)),
+                        CorrespondenceAnalyzer.Analyze(
+                                correspondences,
+                                Matcher.matchWinterLabel(firstInstances, secondInstances)),
+                        CorrespondenceAnalyzer.Analyze(
+                                correspondences,
+                                Matcher.matchXG(firstInstances, secondInstances)),
+                        correspondences),
+                outDir + String.format("/%02d-%02d-evaluation.yaml", firstSchema, secondSchema));
+    }
+
+    public static void writeToFile(EvaluationResult result, String outFile) {
+
         BufferedWriter writer = null;
         try {
-            writer = new BufferedWriter(new FileWriter(outfile));
+            writer = new BufferedWriter(new FileWriter(outFile));
         } catch (IOException e) {
             System.err.println("Outputfile could not be opened.");
             System.exit(1);
@@ -43,52 +105,7 @@ public class Main {
         var yaml = new Yaml();
         var yamlWriter = new StringWriter();
 
-
-        AtomicInteger step = new AtomicInteger(1);
-        System.out.println("Starting analysis of " + alterationFiles.size() + "schema relations.\n" +
-                "This will take " + 3 * alterationFiles.size() + "steps.\n\n" +
-                "Currently at step " + step + "/" + 3 * alterationFiles.size());
-
-        for (Quintet<String, String, String, String, String> input : alterationFiles) {
-            var yamlTruth = input.getValue1();
-            var yamlAlteration = input.getValue3();
-            var csvTruth = input.getValue2().split(",");
-            var csvAlteration = input.getValue4().split(",");
-            var truthCorrespondences = YAMLtoTruthCorrespondences.convert(input.getValue0());
-
-            System.out.print("\rCurrently at step " + step.getAndIncrement() + "/" + 3 * alterationFiles.size());
-            var outSF = Matcher.matchSimilarityFlooding(yamlTruth, yamlAlteration);
-            var cmSF = CorrespondenceAnalyzer.Analyze(truthCorrespondences, outSF);
-            //writeToFile(yaml, writer, yamlWriter, csvTruth, alteration, outSF, cmSF);
-
-            System.out.print("\rCurrently at step " + step.getAndIncrement() + "/" + 3 * alterationFiles.size());
-            var outW = Matcher.matchWinter(csvTruth, csvAlteration);
-            var cmW = CorrespondenceAnalyzer.Analyze(truthCorrespondences, outW);
-            //writeToFile(yaml, writer, yamlWriter, truth, alteration, outW, cmW);
-
-            System.out.print("\rCurrently at step " + step.getAndIncrement() + "/" + 3 * alterationFiles.size());
-            var outXG = Matcher.matchXG(csvTruth, csvAlteration);
-            var cmXG = CorrespondenceAnalyzer.Analyze(truthCorrespondences, outXG);
-            //writeToFile(yaml, writer, yamlWriter, truth, alteration, outXG, cmXG);
-        }
-    }
-
-    public static void writeToFile(Yaml yaml,
-                                   BufferedWriter writer,
-                                   StringWriter yamlWriter,
-                                   String truth,
-                                   String alteration,
-                                   List<? extends Correspondence<?>> correspondences,
-                                   ConfusionMatrix confMatrix) {
-        yaml.dump(new Quadruple<>(
-                Arrays.stream(truth.split("/")).reduce((first, second) -> second).orElse(null),
-                Arrays.stream(alteration.split("/")).reduce((first, second) -> second).orElse(null),
-                correspondences,
-                new double[]{
-                        confMatrix.truePositives(),
-                        confMatrix.TruePositiveRate(),
-                        confMatrix.Precision()}
-        ), yamlWriter);
+        yaml.dump(result, yamlWriter);
         try {
             writer.append(yamlWriter.toString());
         } catch (IOException e) {

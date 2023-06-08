@@ -1,9 +1,9 @@
 #!/bin/bash
 
-EVAL_DIR=$(realpath ./sc_evaluation);
-SC_LOCATION=$(realpath ./ScenarioCreator.jar);
-SCENARIO_DISTANCE=0.8;
-EVAL_LOC=$(realpath ./Evaluator.jar);
+EVAL_DIR=$1;
+SC_LOCATION=$2;
+SCENARIO_DISTANCE=$3;
+EVAL_LOC=$4;
 
 # ensure eval_dir exists
 if [ ! -d "$EVAL_DIR" ]; then
@@ -17,18 +17,19 @@ done
 SUBDIR=$(printf "%03d\n" $COUNTER);
 printf "starting with run #%s\n" "$SUBDIR";
 
-mkdir -p "$EVAL_DIR"/"$SUBDIR";
-mkdir -p "$EVAL_DIR"/"$SUBDIR"/schema;
-mkdir -p "$EVAL_DIR"/"$SUBDIR"/eval;
+mkdir -p "$EVAL_DIR/$SUBDIR";
+mkdir -p "$EVAL_DIR/$SUBDIR"/schema;
+mkdir -p "$EVAL_DIR/$SUBDIR"/eval;
 
 
 echo "starting scenario creator...";
 
-java -jar "$SC_LOCATION" -d $SCENARIO_DISTANCE -od "$EVAL_DIR"/"$SUBDIR"/schema;
+java -jar --enable-preview "$SC_LOCATION" --körnerkissen --no-tgd -av "$EVAL_DIR"/"$SUBDIR"/schema;
 
 echo "done ...";
 echo "now starting the evaluation ...";
 
+: <<'END_COMMENT'
 GT_YAML="$EVAL_DIR"/"$SUBDIR"/schema/groundTruth.yaml;
 GT_CORRESPONDENCES="$EVAL_DIR"/"$SUBDIR"/schema/truthCorrespondences.yaml;
 GT_CSV=$(find "$EVAL_DIR"/"$SUBDIR"/schema/ -type f -name 'gt_.*\.csv');
@@ -60,3 +61,4 @@ done
 java -jar "$EVAL_LOC" "$EVAL_ARGS"
 
 echo "done."
+END_COMMENT

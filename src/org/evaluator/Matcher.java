@@ -15,29 +15,23 @@ import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.comparators.Labe
 import de.uni_mannheim.informatik.dws.winter.processing.Processable;
 import de.uni_mannheim.informatik.dws.winter.similarity.vectorspace.VectorSpaceMaximumOfContainmentSimilarity;
 
-import de.uni_mannheim.informatik.dws.winter.utils.WinterLogManager;
 import org.SimilarityFlooding.Algorithms.*;
 import org.SimilarityFlooding.DataTypes.*;
 import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
-import org.SimilarityFlooding.Util.YAMLParser;
-import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 public class Matcher {
-    public static List<org.utils.Correspondence<String>> matchSimilarityFlooding(String truth, String alteration) {
-        Graph<String> g1 = YAMLParser.Parse(truth).orElse(null);
-        Graph<String> g2 = YAMLParser.Parse(alteration).orElse(null);
+    public static List<org.utils.Correspondence<String>> matchSimilarityFlooding(Graph<String> g1, Graph<String> g2) {
+        assert g1 != null && g2 != null;
 
         var sfconfig = new SFConfig(StringSimilarity::Levenshtein, FixpointFormula.C);
-        assert g1 != null && g2 != null;
         var sf = new SimilarityFlooding<>(g1, g2, sfconfig);
         sf.run(10, 0.05f);
         var distances = sf.getCorrespondants();
@@ -54,16 +48,11 @@ public class Matcher {
         return distances;
     }
 
-    // DUPLIKATBASIERT
-    // load data
-
-    private static final Logger logger = WinterLogManager.activateLogger("default");
-
-    public static List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] truth, String[] alternation) throws IOException {
+    public static List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] firstSchema, String[] secondSchema) {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
-                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
+                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
                     data1);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -72,26 +61,31 @@ public class Matcher {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
-                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
+                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
                     data2);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         // load duplicates
-        Processable<Correspondence<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute>> duplicates = Correspondence
-                .loadFromCsv(new File(
-                        "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts_correspondences.csv"),
-                        data1, data2);
+        Processable<Correspondence<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute>> duplicates = null;
+        try {
+            duplicates = Correspondence
+                    .loadFromCsv(new File(
+                                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts_correspondences.csv"),
+                            data1, data2);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // define the schema matching rule
-        VotingMatchingRule<Attribute, Record> schemaRule = new VotingMatchingRule<Attribute, Record>(
+        VotingMatchingRule<Attribute, Record> schemaRule = new VotingMatchingRule<>(
                 1.0) {
 
             private static final long serialVersionUID = 1L;
 
             public double compare(Attribute a1, Attribute a2,
-                    Correspondence<Record, Matchable> c) {
+                                  Correspondence<Record, Matchable> c) {
                 // get both attribute values
                 String value1 = c.getFirstRecord().getValue(a1);
                 String value2 = c.getSecondRecord().getValue(a2);
@@ -126,11 +120,11 @@ public class Matcher {
     }
 
     // INSTANZBASIERT
-    public static List<org.utils.Correspondence<String>> matchWinterInstance(String[] truth, String[] alternation) {
+    public static List<org.utils.Correspondence<String>> matchWinterInstance(String[] firstSchema, String[] secondSchema) {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         try {
             new CSVRecordReader(-1).loadFromCSV(new File(
-                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
+                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
                     data1);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -138,7 +132,7 @@ public class Matcher {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
         try {
             new CSVRecordReader(-1).loadFromCSV(new File(
-                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
+                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
                     data2);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -180,11 +174,11 @@ public class Matcher {
     }
 
     // LABELBASIERT
-    public static List<org.utils.Correspondence<String>> matchWinterLabel(String[] truth, String[] alternation) {
+    public static List<org.utils.Correspondence<String>> matchWinterLabel(String[] firstSchema, String[] secondSchema) {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
-                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
+                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
                     data1);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -192,7 +186,7 @@ public class Matcher {
         DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
-                    "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
+                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
                     data1);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -214,7 +208,7 @@ public class Matcher {
                 c.getSimilarityScore())).toList();
     }
 
-    public static List<org.utils.Correspondence<String>> matchXG(String[] truth, String[] alternation) {
+    public static List<org.utils.Correspondence<String>> matchXG(String[] firstSchema, String[] secondSchema) {
         return new ArrayList<>();
     }
 }
