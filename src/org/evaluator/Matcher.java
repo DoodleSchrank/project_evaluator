@@ -20,6 +20,7 @@ import org.SimilarityFlooding.DataTypes.*;
 import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
+import org.converter.Node;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Matcher {
-    public static List<org.utils.Correspondence<String>> matchSimilarityFlooding(Graph<String> g1, Graph<String> g2) {
+    public static List<org.utils.Correspondence<Node>> matchSimilarityFlooding(Graph<Node> g1, Graph<Node> g2) {
         assert g1 != null && g2 != null;
 
         var sfconfig = new SFConfig(StringSimilarity::Levenshtein, FixpointFormula.C);
@@ -43,7 +44,7 @@ public class Matcher {
         distances = Filter.knowledgeFilter(distances, ownKnowledge);
         distances = Filter.typingConstraintFilter(graphs, distances);
         distances = Filter.cardinalityConstraintFilter(distances);
-        distances = Selector.highestCumulativeSimilaritySelection(graphs, distances);
+        distances = Selector.highestCumulativeSimilaritySelection(graphs, distances, new Node("null"));
 
         return distances;
     }

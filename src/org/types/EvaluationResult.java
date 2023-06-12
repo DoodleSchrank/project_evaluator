@@ -9,5 +9,5 @@ public record EvaluationResult(AlgorithmResult SFResult,
                                AlgorithmResult WinterInstanceResult,
                                AlgorithmResult WinterLabelResult,
                                AlgorithmResult XGBoostResult,
-                               List<? extends Correspondence<?>> TrueCorrespondences) {
+                               List<? extends  Correspondence<?>> TrueCorrespondences) {
 }
