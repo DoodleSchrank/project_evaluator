@@ -3,7 +3,6 @@ package org.matchers;
 import au.com.bytecode.opencsv.CSVReader;
 import org.converter.Node;
 import org.utils.Correspondence;
-import org.python.util.PythonInterpreter;
 
 import java.io.FileReader;
 import java.io.IOException;
