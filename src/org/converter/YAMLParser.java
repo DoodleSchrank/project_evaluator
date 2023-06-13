@@ -1,5 +1,9 @@
 package org.converter;
 
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.databind.DatabindException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.SimilarityFlooding.DataTypes.Graph;
 import org.SimilarityFlooding.DataTypes.Relation;
 import org.utils.Correspondence;
@@ -7,6 +11,7 @@ import org.yaml.snakeyaml.Yaml;
 import scenarioCreator.data.identification.Id;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -82,7 +87,6 @@ public class YAMLParser {
         } catch (FileNotFoundException e) {
             return new ArrayList<>();
         }
-
-        return (ArrayList<Correspondence<Node>>) obj;
+        return obj;
     }
 }
