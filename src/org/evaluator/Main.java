@@ -1,15 +1,17 @@
 package org.evaluator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.jena.base.Sys;
 import org.converter.CorrespondanceExtractor;
 import org.converter.Node;
 import org.converter.YAMLParser;
 import org.types.EvaluationResult;
 import org.utils.Correspondence;
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,7 +23,6 @@ public class Main {
             System.err.println("You need to pass at least one -alt and -o argument for the program to work.");
             System.exit(1);
         }
-
 
         var schemaFiles = new ArrayList<String>();
         var instanceFiles = new ArrayList<String>();
@@ -37,7 +38,7 @@ public class Main {
                 instanceFiles.addAll(Arrays.stream(args[i + 1].split(",")).toList());
                 i++;
             }
-            if (args[i].startsWith("-corrs") && args.length > i + 1) {
+            if (args[i].startsWith("-correspondences") && args.length > i + 1) {
                 corrFiles.addAll(Arrays.stream(args[i + 1].split(",")).toList());
                 i++;
             }
@@ -48,13 +49,14 @@ public class Main {
         }
         assert !outDir.isEmpty();
 
-        final int numberSchemata = schemaFiles.stream().map(schemaFile -> Integer.parseInt(schemaFile.split("(?=[0-9][0-9])")[1].substring(0, 2))).max(Integer::compare).orElse(0);
+        System.out.println(schemaFiles);
+        final int numberSchemata = schemaFiles.stream()
+                .map(schemaFile -> schemaFile.split("/"))
+                .map(path -> Integer.parseInt(path[path.length - 1].substring(0,2)))
+                .max(Integer::compare).orElse(0);
 
         final var finalOutDir = outDir;
-        /*IntStream.range(1, numberSchemata)//.parallel()
-                .forEach(i ->
-                IntStream.range(i + 1, numberSchemata)//.parallel()
-                        .forEach(j ->*/
+
         for(var i = 1; i < numberSchemata; i++) {
             for(var j = i + 1; j <= numberSchemata; j++) {
 
@@ -76,60 +78,43 @@ public class Main {
     public static void evaluate(int firstSchema, int secondSchema, List<String> schemas, List<String> instances, List<Correspondence<Node>> correspondences, String outDir) {
         assert schemas.size() == 2;
 
-        final var firstInstances = instances.stream().filter(instance -> instance.startsWith("%02d", firstSchema)).toArray(String[]::new);
-        final var secondInstances = instances.stream().filter(instance -> instance.startsWith("%02d", secondSchema)).toArray(String[]::new);
-
-        final var smResult = CorrespondenceAnalyzer.Analyze(
-                correspondences,
-                Matcher.matchSimilarityFlooding(
-                        YAMLParser.ParseGraph(schemas.get(0)).orElse(null),
-                        YAMLParser.ParseGraph(schemas.get(1)).orElse(null)));
-
-        System.out.println(smResult);
-
-        /*writeToFile(
+        final var firstInstances = instances.stream().filter(instance -> instance.contains(String.format("%02d", firstSchema))).toArray(String[]::new);
+        final var secondInstances = instances.stream().filter(instance -> instance.contains(String.format("%02d", secondSchema))).toArray(String[]::new);
+        final var firstGraph = YAMLParser.ParseGraph(schemas.get(firstSchema - 1)).orElse(null);
+        final var secondGraph = YAMLParser.ParseGraph(schemas.get(secondSchema - 1)).orElse(null);
+        writeToFile(
                 new EvaluationResult(
                         CorrespondenceAnalyzer.Analyze(
                                 correspondences,
                                 Matcher.matchSimilarityFlooding(
-                                        YAMLParser.ParseGraph(schemas.get(0)).orElse(null),
-                                        YAMLParser.ParseGraph(schemas.get(1)).orElse(null))),
-                        CorrespondenceAnalyzer.Analyze(
+                                        firstGraph,
+                                        secondGraph)),
+                        /*CorrespondenceAnalyzer.Analyze(
                                 correspondences,
                                 Matcher.matchWinterDuplicate(firstInstances, secondInstances)),
                         CorrespondenceAnalyzer.Analyze(
                                 correspondences,
-                                Matcher.matchWinterInstance(firstInstances, secondInstances)),
+                                Matcher.matchWinterInstance(firstInstances, secondInstances)),*/
                         CorrespondenceAnalyzer.Analyze(
                                 correspondences,
-                                Matcher.matchWinterLabel(firstInstances, secondInstances)),
-                        CorrespondenceAnalyzer.Analyze(
+                                Matcher.matchWinterLabel(
+                                        (String[]) firstGraph.nodes().stream().map(Node::name).toArray(),
+                                        (String[]) secondGraph.nodes().stream().map(Node::name).toArray())),
+                        /*CorrespondenceAnalyzer.Analyze(
                                 correspondences,
-                                Matcher.matchXG(firstInstances, secondInstances)),
+                                Matcher.matchXG(firstInstances, secondInstances)),*/
                         correspondences),
-                outDir + String.format("/%02d-%02d-evaluation.yaml", firstSchema, secondSchema));*/
+                outDir + String.format("/%02d-%02d-evaluation.yaml", firstSchema, secondSchema));
     }
 
     public static void writeToFile(EvaluationResult result, String outFile) {
-        DumperOptions options = new DumperOptions();
-        options.setIndent(2);
-        options.setPrettyFlow(true);
-        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        BufferedWriter writer = null;
+        var mapper = new ObjectMapper(new YAMLFactory());
         try {
-            writer = new BufferedWriter(new FileWriter(outFile));
+            var bufWriter = new BufferedWriter(new FileWriter(outFile));
+            mapper.writeValue(bufWriter, result);
+            bufWriter.close();
         } catch (IOException e) {
-            System.err.println("Outputfile could not be opened.");
-            System.exit(1);
-        }
-        var yaml = new Yaml(options);
-        var yamlWriter = new StringWriter();
-
-        yaml.dump(result, yamlWriter);
-        try {
-            writer.append(yamlWriter.toString());
-        } catch (IOException e) {
-            System.err.println("Could not write to output file.");
+            System.err.println("Could not write to output file." + outFile);
             System.exit(1);
         }
     }

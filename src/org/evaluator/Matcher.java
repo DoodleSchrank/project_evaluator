@@ -1,11 +1,10 @@
 package org.evaluator;
 
+
 import de.uni_mannheim.informatik.dws.winter.matching.MatchingEngine;
 import de.uni_mannheim.informatik.dws.winter.matching.aggregators.VotingAggregator;
 import de.uni_mannheim.informatik.dws.winter.matching.blockers.BlockingKeyIndexer.VectorCreationMethod;
 import de.uni_mannheim.informatik.dws.winter.matching.blockers.InstanceBasedSchemaBlocker;
-import de.uni_mannheim.informatik.dws.winter.matching.blockers.NoSchemaBlocker;
-import de.uni_mannheim.informatik.dws.winter.matching.rules.VotingMatchingRule;
 import de.uni_mannheim.informatik.dws.winter.model.*;
 import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.*;
 import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record;
@@ -21,36 +20,97 @@ import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
 import org.converter.Node;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.w3c.rdf.model.Model;
+import org.w3c.rdf.model.ModelException;
+import org.w3c.rdf.model.Resource;
+import org.w3c.rdf.util.RDFFactoryImpl;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 public class Matcher {
+
+    private static Resource getResource(String name) {
+        final var rf = new RDFFactoryImpl();
+        final var nf = rf.getNodeFactory();
+        try {
+            return nf.createResource(name);
+        } catch (ModelException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Model createModel(Graph<?> g1) {
+        final var rf = new RDFFactoryImpl();
+        final var nf = rf.getNodeFactory();
+
+        // create graph/model A
+        final var model = rf.createModel();
+        g1.edges().forEach(edge -> {
+            try {
+                model.add(nf.createStatement(
+                        getResource(edge.parent().toString()),
+                        getResource(edge.relation()),
+                        getResource(edge.child().toString())
+                ));
+            } catch (ModelException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        return model;
+    }
+
     public static List<org.utils.Correspondence<Node>> matchSimilarityFlooding(Graph<Node> g1, Graph<Node> g2) {
         assert g1 != null && g2 != null;
 
-        var sfconfig = new SFConfig(StringSimilarity::Levenshtein, FixpointFormula.C);
-        var sf = new SimilarityFlooding<>(g1, g2, sfconfig);
-        sf.run(10, 0.05f);
+        final var sfconfig = new SFConfig(StringSimilarity::Levenshtein, FixpointFormula.Basic);
+        final var sf = new SimilarityFlooding<>(g1, g2, sfconfig);
+        sf.run(100, 0.05f);
         var distances = sf.getCorrespondants();
-        var graphs = sf.getGraphs();
+        final var graphs = sf.getGraphs();
 
-        var knowledge = Filter.Knowledge;
-        var ownKnowledge = new HashMap<>(knowledge);
-        ownKnowledge.put("first", "erster");
-        distances = Filter.knowledgeFilter(distances, ownKnowledge);
+        /*final var modelA = createModel(g1);
+        final var modelB = createModel(g2);
+        final var initialSigma = new ArrayList<MapPair>();
+        try {
+            RDFUtil.getNodes(modelA).values().forEach(nA -> {
+                try {
+                    RDFUtil.getNodes(modelB).values().forEach(nB -> {
+                        initialSigma.add(new MapPair(nA, nB, StringSimilarity.Levenshtein(nA.toString(), nB.toString())));
+                    });
+                } catch (ModelException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } catch (ModelException e) {
+            throw new RuntimeException(e);
+        }
+
+        final var sf_ref = new Match();
+        sf_ref.formula = new boolean[]{false, false, true};
+        sf_ref.formula = new boolean[]{true, true, true};
+        sf_ref.FLOW_GRAPH_TYPE = 1;
+        MapPair[] result;
+        try {
+            result = sf_ref.getMatch(modelA, modelB, initialSigma);
+        } catch (ModelException e) {
+            throw new RuntimeException(e);
+        }
+        MapPair.sort(result);
+        final var filteredBest = new FilterBest().getFilterBest(Arrays.asList(result), true);*/
+
+
         distances = Filter.typingConstraintFilter(graphs, distances);
-        distances = Filter.cardinalityConstraintFilter(distances);
-        distances = Selector.highestCumulativeSimilaritySelection(graphs, distances, new Node("null"));
-
+        //distances = Selector.selectThreshold(graphs, distances, 0.6f);
+        distances = Selector.selectSimpleThreshold(graphs, distances, 0.30f);
         return distances;
     }
 
-    public static List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] firstSchema, String[] secondSchema) {
-        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
+    public static @NotNull List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] firstSchema, String[] secondSchema) {
+        /*DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
                             "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
@@ -112,29 +172,45 @@ public class Matcher {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        DataSet<Record, Attribute> data1 = new HashedDataSet<>();
+        DataSet<Record, Attribute> data2 = new HashedDataSet<>();
+        try {
+            for (var file : firstSchema) {
+                new CSVRecordReader(0).loadFromCSV(new File(file), data1);
+            }
+            for (var file : secondSchema) {
+                new CSVRecordReader(0).loadFromCSV(new File(file), data2);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+// create a matching rule
+        LinearCombinationMatchingRule<Record, Attribute> matchingRule = new LinearCombinationMatchingRule<>(0.7);
+// add comparators
+        matchingRule.addComparator(
+                (m1,  m2, c) -> new TokenizingJaccardSimilarity().calculate(m1.getValue() getTitle(), m2.getTitle()), 0.8);
+        matchingRule.addComparator(
+                (m1, m2, c) -> new YearSimilarity(10).calculate(m1.getDate(), m2.getDate()), 0.2);
 
-        // print results (fragen, wie genau das funtioniert)
+
         return correspondences.get().stream().map(c -> new org.utils.Correspondence<>(
                 c.getFirstRecord().getName(),
                 c.getSecondRecord().getName(),
-                c.getSimilarityScore())).toList();
+                c.getSimilarityScore())).toList();*/
+        return new ArrayList<>();
     }
 
     // INSTANZBASIERT
     public static List<org.utils.Correspondence<String>> matchWinterInstance(String[] firstSchema, String[] secondSchema) {
-        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
+        DataSet<Record, Attribute> data1 = new HashedDataSet<>();
+        DataSet<Record, Attribute> data2 = new HashedDataSet<>();
         try {
-            new CSVRecordReader(-1).loadFromCSV(new File(
-                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
-                    data1);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
-        try {
-            new CSVRecordReader(-1).loadFromCSV(new File(
-                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
-                    data2);
+            for (var file : firstSchema) {
+                new CSVRecordReader(-1).loadFromCSV(new File(file), data1);
+            }
+            for (var file : secondSchema) {
+                new CSVRecordReader(-1).loadFromCSV(new File(file), data2);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -156,7 +232,7 @@ public class Matcher {
         MatchingEngine<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> engine = new MatchingEngine<>();
 
         // run the matching engine
-        Processable<Correspondence<Attribute, MatchableValue>> correspondences = null;
+        Processable<Correspondence<Attribute, MatchableValue>> correspondences;
         try {
             correspondences = engine.runInstanceBasedSchemaMatching(data1, data2,
                     new DefaultAttributeValuesAsBlockingKeyGenerator(data1.getSchema()),
@@ -176,19 +252,13 @@ public class Matcher {
 
     // LABELBASIERT
     public static List<org.utils.Correspondence<String>> matchWinterLabel(String[] firstSchema, String[] secondSchema) {
-        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
+        DataSet<Record, Attribute> data1 = new HashedDataSet<>();
+        DataSet<Record, Attribute> data2 = new HashedDataSet<>();
         try {
-            new CSVRecordReader(0).loadFromCSV(new File(
-                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
-                    data1);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data2 = new HashedDataSet<>();
-        try {
-            new CSVRecordReader(0).loadFromCSV(new File(
-                            "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts2.csv"),
-                    data1);
+                new CSVRecordReader(0).loadFromCSV(new File("/home/yannik/stuff/studium/mproj/evaluator/src/org/evaluator/legalacts1.csv"), data1);
+
+                new CSVRecordReader(0).loadFromCSV(new File("/home/yannik/stuff/studium/mproj/evaluator/src/org/evaluator/legalacts2.csv"), data2);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -209,7 +279,7 @@ public class Matcher {
                 c.getSimilarityScore())).toList();
     }
 
-    public static List<org.utils.Correspondence<String>> matchXG(String[] firstSchema, String[] secondSchema) {
+    public static List<org.utils.Correspondence<String>> matchXG(String[] schemaA, String[] schemaB) {
         return new ArrayList<>();
     }
 }

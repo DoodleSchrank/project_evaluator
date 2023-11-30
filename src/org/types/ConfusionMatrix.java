@@ -5,7 +5,8 @@ public record ConfusionMatrix(long truePositives,
                               long trueNegatives,
                               long falseNegatives,
                               long positives,
-                              long negatives) {
+                              long negatives,
+                              double recallGT) {
     public double TruePositiveRate() {
         return (double) truePositives / positives;
     }

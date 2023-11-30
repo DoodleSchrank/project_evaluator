@@ -5,9 +5,9 @@ import org.utils.Correspondence;
 import java.util.List;
 
 public record EvaluationResult(AlgorithmResult SFResult,
-                               AlgorithmResult WinterDuplicateResult,
-                               AlgorithmResult WinterInstanceResult,
+                               //AlgorithmResult WinterDuplicateResult,
+                               //AlgorithmResult WinterInstanceResult,
                                AlgorithmResult WinterLabelResult,
-                               AlgorithmResult XGBoostResult,
+                               //AlgorithmResult XGBoostResult,
                                List<? extends  Correspondence<?>> TrueCorrespondences) {
 }
