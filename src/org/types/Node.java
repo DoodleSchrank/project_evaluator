@@ -1,5 +1,6 @@
-package org.converter;
+package org.types;
 
+import org.utils.Correspondence;
 import scenarioCreator.data.identification.Id;
 import scenarioCreator.data.identification.IdSimple;
 
@@ -13,12 +14,17 @@ public record Node(String name, Id id) {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof Node s)) return false;
+        return this.hashCode() == s.hashCode();
+    }
+    @Override
     public int hashCode() {
-        return name.hashCode();
+        return name.hashCode() + id.hashCode();
     }
 
     @Override
     public String toString() {
-        return name + "(" + id.toString() + ")";
+        return name;
     }
 }

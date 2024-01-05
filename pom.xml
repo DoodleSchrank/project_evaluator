@@ -36,7 +36,7 @@
             <artifactId>smflooding</artifactId>
             <version>1.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/lib/similarity_flooding.jar</systemPath>
+            <systemPath>${project.basedir}/lib/smflooding.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.sfa</groupId>
@@ -44,6 +44,13 @@
             <version>1.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/sfa-2003-11-17.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.schematch</groupId>
+            <artifactId>schematch</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/schematch.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.javatuples</groupId>

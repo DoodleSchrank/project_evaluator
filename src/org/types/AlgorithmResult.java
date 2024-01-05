@@ -4,7 +4,8 @@ import org.utils.Correspondence;
 
 import java.util.List;
 
-public record AlgorithmResult(long truePositives,
+public record AlgorithmResult(String Name,
+                              long truePositives,
                               double truePositiveRate,
                               double precision,
                               double falseNegativeRate,

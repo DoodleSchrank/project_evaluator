@@ -2,20 +2,16 @@ package org.evaluator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.apache.jena.base.Sys;
-import org.converter.CorrespondanceExtractor;
-import org.converter.Node;
-import org.converter.YAMLParser;
+import org.converter.SchematcherParser;
+import org.types.Node;
+import org.converter.GraphParser;
 import org.types.EvaluationResult;
 import org.utils.Correspondence;
 
 import java.io.*;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class Main {
     public static void main(String[] args) {
@@ -28,6 +24,7 @@ public class Main {
         var instanceFiles = new ArrayList<String>();
         var corrFiles = new ArrayList<String>();
         var outDir = "";
+        var linkedSF = false;
 
         for (var i = 0; i < args.length; i++) {
             if (args[i].startsWith("-schemata") && args.length > i + 1) {
@@ -46,6 +43,11 @@ public class Main {
                 outDir = args[i + 1];
                 i++;
             }
+
+            if (args[i].startsWith("-linkedSF") && args.length > i + 1) {
+                linkedSF = "true".equals(args[i + 1]);
+                i++;
+            }
         }
         assert !outDir.isEmpty();
 
@@ -57,54 +59,61 @@ public class Main {
 
         final var finalOutDir = outDir;
 
-        for(var i = 1; i < numberSchemata; i++) {
+        final var baseindex = schemaFiles.get(0).contains("single") ? 0 : 1;
+        for(var i = baseindex; i < numberSchemata; i++) {
             for(var j = i + 1; j <= numberSchemata; j++) {
 
                 int finalJ = j;
                 int finalI = i;
-                evaluate(i, j, schemaFiles.stream().filter(schema ->
-                                        schema.contains(String.format("%02d", finalI)) ||
-                                                schema.contains(String.format("%02d", finalJ))).toList(),
-                                instanceFiles.stream().filter(instance ->
+                evaluate(schemaFiles.stream().filter(schema ->
+                                        schema.contains(String.format("%02d", finalI))).findFirst().orElse(""),
+                        schemaFiles.stream().filter(schema ->
+                                        schema.contains(String.format("%02d", finalJ))).findFirst().orElse(""),
+                                /*instanceFiles.stream().filter(instance ->
                                         instance.contains(String.format("%02d", finalI)) ||
-                                                instance.contains(String.format("%02d", finalJ))).toList(),
-                                YAMLParser.ParseCorrespondences(corrFiles.stream().filter(corr ->
+                                                instance.contains(String.format("%02d", finalJ))).toList(),*/
+                                GraphParser.ParseCorrespondences(corrFiles.stream().filter(corr ->
                                         corr.contains(String.format("%02d-%02d", finalI, finalJ))).findFirst().orElseThrow()),
-                                finalOutDir);
+                                finalOutDir + String.format("/%02d-%02d-evaluation.yaml", finalI, finalJ),
+                        linkedSF);
             }
         }
     }
 
-    public static void evaluate(int firstSchema, int secondSchema, List<String> schemas, List<String> instances, List<Correspondence<Node>> correspondences, String outDir) {
-        assert schemas.size() == 2;
-
-        final var firstInstances = instances.stream().filter(instance -> instance.contains(String.format("%02d", firstSchema))).toArray(String[]::new);
-        final var secondInstances = instances.stream().filter(instance -> instance.contains(String.format("%02d", secondSchema))).toArray(String[]::new);
-        final var firstGraph = YAMLParser.ParseGraph(schemas.get(firstSchema - 1)).orElse(null);
-        final var secondGraph = YAMLParser.ParseGraph(schemas.get(secondSchema - 1)).orElse(null);
+    public static void evaluate(String schemaA, String schemaB, /*List<String> instances,*/ List<Correspondence<Node>> groundTruth, String outFile, Boolean linkedSF) {
+        final var schematchDBA = SchematcherParser.Parse(schemaA).orElseThrow();
+        final var schematchDBB = SchematcherParser.Parse(schemaB).orElseThrow();
+        System.out.println(String.join(",", schematchDBA.getTables().keySet()));
         writeToFile(
-                new EvaluationResult(
+                new EvaluationResult(List.of(
                         CorrespondenceAnalyzer.Analyze(
-                                correspondences,
-                                Matcher.matchSimilarityFlooding(
-                                        firstGraph,
-                                        secondGraph)),
-                        /*CorrespondenceAnalyzer.Analyze(
-                                correspondences,
-                                Matcher.matchWinterDuplicate(firstInstances, secondInstances)),
+                                "Similarity Flooding",
+                                groundTruth,
+                                Matcher.MatchSimilarityFlooding(
+                                        GraphParser.Parse(schemaA, linkedSF).orElse(null),
+                                        GraphParser.Parse(schemaB, linkedSF).orElse(null))),
                         CorrespondenceAnalyzer.Analyze(
-                                correspondences,
-                                Matcher.matchWinterInstance(firstInstances, secondInstances)),*/
+                                "SchematchCosine",
+                                groundTruth,
+                                Matcher.MatchSchematchCosine(schematchDBA, schematchDBB)),
                         CorrespondenceAnalyzer.Analyze(
-                                correspondences,
-                                Matcher.matchWinterLabel(
-                                        (String[]) firstGraph.nodes().stream().map(Node::name).toArray(),
-                                        (String[]) secondGraph.nodes().stream().map(Node::name).toArray())),
-                        /*CorrespondenceAnalyzer.Analyze(
-                                correspondences,
-                                Matcher.matchXG(firstInstances, secondInstances)),*/
-                        correspondences),
-                outDir + String.format("/%02d-%02d-evaluation.yaml", firstSchema, secondSchema));
+                                "SchematchHammingMatcher",
+                                groundTruth,
+                                Matcher.MatchSchematchHamming(schematchDBA, schematchDBB)),
+                        CorrespondenceAnalyzer.Analyze(
+                                "SchematchJaroWinkler",
+                                groundTruth,
+                                Matcher.MatchSchematchJaroWinkler(schematchDBA, schematchDBB)),
+                        CorrespondenceAnalyzer.Analyze(
+                                "SchematchLevenshtein",
+                                groundTruth,
+                                Matcher.MatchSchematchLevensthein(schematchDBA, schematchDBB)),
+                        CorrespondenceAnalyzer.Analyze(
+                                "SchematchLongestCommonSubsequenceMatcher",
+                                groundTruth,
+                                Matcher.MatchSchematchLongestCommonSubSequence(schematchDBA, schematchDBB))
+                ),groundTruth),
+                outFile);
     }
 
     public static void writeToFile(EvaluationResult result, String outFile) {

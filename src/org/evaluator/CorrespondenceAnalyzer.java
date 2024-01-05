@@ -1,6 +1,7 @@
 package org.evaluator;
 
-import org.converter.Node;
+import org.apache.jena.base.Sys;
+import org.types.Node;
 import org.types.AlgorithmResult;
 import org.types.ConfusionMatrix;
 import org.utils.Correspondence;
@@ -14,13 +15,12 @@ import java.util.ArrayList;
 import static java.util.stream.Collectors.toCollection;
 
 public class CorrespondenceAnalyzer {
-    public static AlgorithmResult Analyze(List<? extends Correspondence<?>> truth, List<? extends Correspondence<?>> unsortedAlgResult) {
-        final var algorithmResult = unsortedAlgResult.stream().collect(toCollection(ArrayList::new));
-        algorithmResult.sort(Comparator.comparingDouble(Correspondence::similarity));
+    public static AlgorithmResult Analyze(String algorithm, List<Correspondence<Node>> truth, List<? extends Correspondence<?>> unsortedAlgResult) {
+        final var algorithmResult = unsortedAlgResult.stream().sorted(Comparator.comparingDouble(Correspondence::similarity)).collect(toCollection(ArrayList::new));
         Collections.reverse(algorithmResult);
 
         if (algorithmResult.isEmpty()) {
-            var cm =  new ConfusionMatrix(
+            var cm = new ConfusionMatrix(
                     0,
                     0,
                     0,
@@ -29,7 +29,7 @@ public class CorrespondenceAnalyzer {
                     0,
                     0
             );
-            return new AlgorithmResult(
+            return new AlgorithmResult(algorithm,
                     cm.truePositives(),
                     cm.TruePositiveRate(),
                     cm.Precision(),
@@ -46,8 +46,7 @@ public class CorrespondenceAnalyzer {
                     algorithmResult);
         }
 
-        final var usesIds = algorithmResult.get(0).nodeA() instanceof Node && !((Node) algorithmResult.get(0).nodeA()).id().toString().equals("-1");
-
+        final var usesIds = algorithmResult.get(0).nodeA() instanceof Node && ((Node) algorithmResult.get(0).nodeA()).id() != null && !((Node) algorithmResult.get(0).nodeA()).id().toString().equals("-1");
         // create crossproduct of all possible correspondences
         final var crossProduct = new HashSet<Correspondence<?>>(truth);
         Collections.synchronizedList(truth).parallelStream()
@@ -67,10 +66,16 @@ public class CorrespondenceAnalyzer {
             recallGT = ((double) algorithmResult.stream().limit(truth.size())
                     .filter(truth::contains).count()) / ((double) truth.size());
         } else {
-            truePositive = algorithmResult.parallelStream()
-                    .filter(ar -> truth.stream().anyMatch(t -> t.toString().equals(ar.toString()))).count();
-            recallGT = ((double) algorithmResult.stream().limit(truth.size())
-                    .filter(truth::contains).count()) / ((double) truth.size());
+            truePositive = algorithmResult.stream()
+                    .filter(aR -> truth.stream()
+                            .anyMatch(t -> t.nodeA().toString().equals(aR.nodeA().toString()) &&
+                                    t.nodeB().toString().equals(aR.nodeB().toString())))
+                    .count();
+            recallGT = (double) algorithmResult.stream()
+                    .limit(truth.size())
+                    .filter(aR -> truth.stream()
+                    .anyMatch(t -> t.nodeA().toString().equals(aR.nodeA().toString()) &&
+                            t.nodeB().toString().equals(aR.nodeB().toString()))).count() / (double) truth.size();
         }
         final var falsePositive = algorithmResult.size() - truePositive;
 
@@ -82,17 +87,17 @@ public class CorrespondenceAnalyzer {
                 .filter(cP -> !algorithmResult.contains(cP))    // get test negatives
                 .filter(truth::contains)              // which are supposed to be positive
                 .count();
-
-        var cm =  new ConfusionMatrix(
+        crossProduct.removeAll(algorithmResult);
+        final var cm = new ConfusionMatrix(
                 truePositive,
                 falsePositive,
                 trueNegative,
                 falseNegative,
-                truth.size(),
-                crossProduct.parallelStream().filter(cP -> !truth.contains(cP)).count(),
+                algorithmResult.size(),
+                crossProduct.size(),
                 recallGT
         );
-        return new AlgorithmResult(
+        return new AlgorithmResult(algorithm,
                 cm.truePositives(),
                 cm.TruePositiveRate(),
                 cm.Precision(),

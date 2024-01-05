@@ -1,34 +1,21 @@
 package org.evaluator;
 
 
-import de.uni_mannheim.informatik.dws.winter.matching.MatchingEngine;
-import de.uni_mannheim.informatik.dws.winter.matching.aggregators.VotingAggregator;
-import de.uni_mannheim.informatik.dws.winter.matching.blockers.BlockingKeyIndexer.VectorCreationMethod;
-import de.uni_mannheim.informatik.dws.winter.matching.blockers.InstanceBasedSchemaBlocker;
-import de.uni_mannheim.informatik.dws.winter.model.*;
-import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.*;
-import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record;
-import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.blocking.DefaultAttributeValueGenerator;
-import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.blocking.DefaultAttributeValuesAsBlockingKeyGenerator;
-import de.uni_mannheim.informatik.dws.winter.model.defaultmodel.comparators.LabelComparatorJaccard;
-import de.uni_mannheim.informatik.dws.winter.processing.Processable;
-import de.uni_mannheim.informatik.dws.winter.similarity.vectorspace.VectorSpaceMaximumOfContainmentSimilarity;
-
+import de.uni_marburg.schematch.data.Database;
+import de.uni_marburg.schematch.matching.similarity.label.*;
+import de.uni_marburg.schematch.matchtask.tablepair.TablePair;
 import org.SimilarityFlooding.Algorithms.*;
 import org.SimilarityFlooding.DataTypes.*;
 import org.SimilarityFlooding.FixpointFormula;
 import org.SimilarityFlooding.SFConfig;
 import org.SimilarityFlooding.SimilarityFlooding;
-import org.converter.Node;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
+import org.types.Node;
+import org.utils.Correspondence;
 import org.w3c.rdf.model.Model;
 import org.w3c.rdf.model.ModelException;
 import org.w3c.rdf.model.Resource;
 import org.w3c.rdf.util.RDFFactoryImpl;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 public class Matcher {
@@ -63,7 +50,7 @@ public class Matcher {
         return model;
     }
 
-    public static List<org.utils.Correspondence<Node>> matchSimilarityFlooding(Graph<Node> g1, Graph<Node> g2) {
+    public static List<org.utils.Correspondence<Node>> MatchSimilarityFlooding(Graph<Node> g1, Graph<Node> g2) {
         assert g1 != null && g2 != null;
 
         final var sfconfig = new SFConfig(StringSimilarity::Levenshtein, FixpointFormula.Basic);
@@ -105,12 +92,13 @@ public class Matcher {
 
         distances = Filter.typingConstraintFilter(graphs, distances);
         //distances = Selector.selectThreshold(graphs, distances, 0.6f);
-        distances = Selector.selectSimpleThreshold(graphs, distances, 0.30f);
+        distances = Selector.selectSimpleThreshold(distances, 0.70f);
         return distances;
     }
 
+    /*
     public static @NotNull List<org.utils.Correspondence<String>> matchWinterDuplicate(String[] firstSchema, String[] secondSchema) {
-        /*DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
+        DataSet<de.uni_mannheim.informatik.dws.winter.model.defaultmodel.Record, Attribute> data1 = new HashedDataSet<>();
         try {
             new CSVRecordReader(0).loadFromCSV(new File(
                             "D:\\Uni\\5\\Projekt\\roject_evaluator\\src\\org\\evaluator\\legalacts1.csv"),
@@ -196,7 +184,7 @@ public class Matcher {
         return correspondences.get().stream().map(c -> new org.utils.Correspondence<>(
                 c.getFirstRecord().getName(),
                 c.getSecondRecord().getName(),
-                c.getSimilarityScore())).toList();*/
+                c.getSimilarityScore())).toList();
         return new ArrayList<>();
     }
 
@@ -251,14 +239,16 @@ public class Matcher {
     }
 
     // LABELBASIERT
-    public static List<org.utils.Correspondence<String>> matchWinterLabel(String[] firstSchema, String[] secondSchema) {
+    public static List<org.utils.Correspondence<String>> matchWinterLabel(List<String> firstSchema, List<String> secondSchema) {
         DataSet<Record, Attribute> data1 = new HashedDataSet<>();
         DataSet<Record, Attribute> data2 = new HashedDataSet<>();
         try {
-                new CSVRecordReader(0).loadFromCSV(new File("/home/yannik/stuff/studium/mproj/evaluator/src/org/evaluator/legalacts1.csv"), data1);
-
-                new CSVRecordReader(0).loadFromCSV(new File("/home/yannik/stuff/studium/mproj/evaluator/src/org/evaluator/legalacts2.csv"), data2);
-
+            for (var file : firstSchema) {
+                new CSVRecordReader(0).loadFromCSV(new File(file), data1);
+            }
+            for (var file : secondSchema) {
+                new CSVRecordReader(0).loadFromCSV(new File(file), data2);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -277,6 +267,37 @@ public class Matcher {
                 c.getFirstRecord().getName(),
                 c.getSecondRecord().getName(),
                 c.getSimilarityScore())).toList();
+    }*/
+
+    public static List<org.utils.Correspondence<String>> MatchSchematchCosine(Database schemaA, Database schemaB) {
+        return evalSchematch(new CosineMatcher(), schemaA, schemaB).stream().filter(c -> c.similarity() > 0.7f).toList();
+    }
+    public static List<org.utils.Correspondence<String>> MatchSchematchHamming(Database schemaA, Database schemaB) {
+        return evalSchematch(new HammingMatcher(), schemaA, schemaB).stream().filter(c -> c.similarity() > 0.7f).toList();
+    }
+    public static List<org.utils.Correspondence<String>> MatchSchematchJaroWinkler(Database schemaA, Database schemaB) {
+        return evalSchematch(new JaroWinklerMatcher(), schemaA, schemaB).stream().filter(c -> c.similarity() > 0.7f).toList();
+    }
+    public static List<org.utils.Correspondence<String>> MatchSchematchLevensthein(Database schemaA, Database schemaB) {
+        return evalSchematch(new LevenshteinMatcher(), schemaA, schemaB).stream().filter(c -> c.similarity() > 0.7f).toList();
+    }
+    public static List<org.utils.Correspondence<String>> MatchSchematchLongestCommonSubSequence(Database schemaA, Database schemaB) {
+        return evalSchematch(new LongestCommonSubsequenceMatcher(), schemaA, schemaB).stream().filter(c -> c.similarity() > 0.7f).toList();
+    }
+    private static List<Correspondence<String>> evalSchematch(LabelSimilarityMatcher matcher, Database schemaA, Database schemaB) {
+        final var correspondences = new ArrayList<org.utils.Correspondence<String>>();
+
+        for(final var tblA : schemaA.getTables().values()) {
+            for (final var tblB : schemaB.getTables().values()) {
+                final var result = matcher.match(new TablePair(tblA, tblB));
+                for(var y = 0; y < result.length; y++) {
+                    for (var x = 0; x < result[0].length; x++) {
+                        correspondences.add(new org.utils.Correspondence<>(tblA.getColumn(y).getLabel(), tblB.getColumn(x).getLabel(), result[y][x]));
+                    }
+                }
+            }
+        }
+        return correspondences;
     }
 
     public static List<org.utils.Correspondence<String>> matchXG(String[] schemaA, String[] schemaB) {

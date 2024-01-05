@@ -4,10 +4,6 @@ import org.utils.Correspondence;
 
 import java.util.List;
 
-public record EvaluationResult(AlgorithmResult SFResult,
-                               //AlgorithmResult WinterDuplicateResult,
-                               //AlgorithmResult WinterInstanceResult,
-                               AlgorithmResult WinterLabelResult,
-                               //AlgorithmResult XGBoostResult,
+public record EvaluationResult(List<AlgorithmResult> Results,
                                List<? extends  Correspondence<?>> TrueCorrespondences) {
 }
